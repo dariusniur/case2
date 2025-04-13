@@ -196,114 +196,77 @@
     </footer>
 
     <script>
-    // Inicializuoti AOS
+    // Initialize AOS
     AOS.init({
         duration: 800,
         easing: 'ease-in-out',
-        once: true,
-        mirror: false
+        once: true
     });
 
     document.addEventListener('DOMContentLoaded', function() {
+        // Form submission handling
         const form = document.getElementById('orderForm');
-        const orderButton = document.getElementById('orderButton');
+        if (form) {
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const submitButton = form.querySelector('button[type="submit"]');
+                const originalText = submitButton.innerHTML;
+                submitButton.disabled = true;
+                submitButton.innerHTML = '<span class="loading loading-spinner loading-sm"></span> Siunčiama...';
 
-        // Pristatymo būdų pasirinkimo funkcionalumas
-        document.querySelectorAll('.delivery-option').forEach(option => {
-            option.addEventListener('click', () => {
-                document.querySelectorAll('.delivery-option').forEach(opt => {
-                    opt.classList.remove('border-pink-500', 'bg-pink-50');
-                });
-                option.classList.add('border-pink-500', 'bg-pink-50');
-                const radio = option.querySelector('input[type="radio"]');
-                radio.checked = true;
-            });
-        });
+                try {
+                    const formData = {
+                        customerName: form.querySelector('[name="customerName"]').value,
+                        customerAddress: form.querySelector('[name="customerAddress"]').value,
+                        customerPhone: form.querySelector('[name="customerPhone"]').value,
+                        phoneModel: form.querySelector('[name="phoneModel"]').value,
+                        deliveryMethod: form.querySelector('[name="deliveryMethod"]').value
+                    };
 
-        // Formos validacija
-        function validateForm() {
-            const requiredFields = [
-                'customerName',
-                'customerAddress',
-                'customerPhone',
-                'phoneModel'
-            ];
-            
-            const allFieldsFilled = requiredFields.every(field => {
-                const element = document.getElementById(field);
-                return element && element.value.trim() !== '';
+                    const response = await fetch('create-checkout-session.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(formData)
+                    });
+
+                    const data = await response.json();
+
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+
+                    const stripe = Stripe('<?php echo $env['STRIPE_PUBLIC_KEY']; ?>');
+                    const result = await stripe.redirectToCheckout({
+                        sessionId: data.id
+                    });
+
+                    if (result.error) {
+                        throw new Error(result.error.message);
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Įvyko klaida: ' + error.message);
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = originalText;
+                }
             });
-            
-            const deliveryMethodSelected = document.querySelector('input[name="deliveryMethod"]:checked');
-            
-            orderButton.disabled = !(allFieldsFilled && deliveryMethodSelected);
         }
 
-        form.querySelectorAll('input, select').forEach(element => {
-            element.addEventListener('input', validateForm);
-            element.addEventListener('change', validateForm);
-        });
-
-        validateForm();
-
-        form.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            if (!form.checkValidity()) {
-                alert('Prašome užpildyti visus būtinus laukus');
-                return;
-            }
-
-            orderButton.disabled = true;
-            orderButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Apdorojama...';
-
-            const formData = {
-                customerName: document.getElementById('customerName').value,
-                customerAddress: document.getElementById('customerAddress').value,
-                customerPhone: document.getElementById('customerPhone').value,
-                deliveryMethod: document.querySelector('input[name="deliveryMethod"]:checked').value,
-                phoneModel: document.getElementById('phoneModel').value
-            };
-
-            try {
-                const response = await fetch('create-checkout-session.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(formData)
-                });
-
-                if (!response.ok) {
-                    throw new Error('Serverio klaida');
+        // Smooth scroll for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
                 }
-
-                const data = await response.json();
-
-                if (data.error) {
-                    throw new Error(data.error);
-                }
-
-                if (!data.id) {
-                    throw new Error('Negautas sesijos ID');
-                }
-
-                console.log('Gautas sesijos ID:', data.id);
-
-                const stripe = Stripe(stripePublishableKey);
-                const result = await stripe.redirectToCheckout({
-                    sessionId: data.id
-                });
-
-                if (result.error) {
-                    throw new Error(result.error.message);
-                }
-            } catch (error) {
-                console.error('Klaida:', error);
-                alert('Įvyko klaida: ' + error.message);
-                orderButton.disabled = false;
-                orderButton.innerHTML = '<i class="fas fa-shopping-cart mr-2"></i> Užsakyti';
-            }
+            });
         });
     });
     </script>

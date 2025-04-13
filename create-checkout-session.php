@@ -25,7 +25,7 @@ try {
     }
     
     $stripeSecretKey = $env['STRIPE_SECRET_KEY'];
-    $siteUrl = $env['SITE_URL'] ?? 'https://deklink.lt';
+    $siteUrl = $env['SITE_URL'] ?? 'https://' . $_SERVER['HTTP_HOST'];
     
     // Get POST data
     $input = file_get_contents('php://input');
@@ -43,7 +43,7 @@ try {
         }
     }
     
-    // Log received data
+    // Log received data (for debugging)
     error_log('Received data: ' . print_r($data, true));
     
     // Initialize cURL session
@@ -72,6 +72,13 @@ try {
             'customer_phone' => $data['customerPhone'],
             'phone_model' => $data['phoneModel'],
             'delivery_method' => $data['deliveryMethod']
+        ],
+        'customer_email' => $data['customerEmail'] ?? null,
+        'shipping_address_collection' => [
+            'allowed_countries' => ['LT']
+        ],
+        'phone_number_collection' => [
+            'enabled' => true
         ]
     ];
     
@@ -82,8 +89,11 @@ try {
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
         'Authorization: Bearer ' . $stripeSecretKey,
-        'Content-Type: application/json'
+        'Content-Type: application/json',
+        'Stripe-Version: 2023-10-16'
     ]);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 30);
     
     // Execute cURL request
     $response = curl_exec($ch);

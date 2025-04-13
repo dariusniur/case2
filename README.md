@@ -1,6 +1,66 @@
-# Deklink - Custom Phone Case Shop
+# Phone Case Order System
 
-This is a custom phone case shop with Stripe integration for secure payments.
+Moderni telefonų dėklų užsakymo sistema su Stripe mokėjimais.
+
+## Reikalavimai
+
+- PHP 7.4 arba naujesnė versija
+- cURL plėtinys
+- JSON plėtinys
+- mbstring plėtinys
+- SSL sertifikatas
+- Stripe paskyra
+
+## Diegimas Hostinger hostinge
+
+1. Sukurkite naują svetainę Hostinger valdymo skydelyje
+2. Įjunkite SSL sertifikatą
+3. Sukonfigūruokite PHP versiją (7.4 arba naujesnė)
+4. Įkelkite failus į `public_html` katalogą
+5. Sukurkite `.env` failą pagal `.env.example` pavyzdį
+6. Nustatykite teisingas failų teises:
+   ```bash
+   chmod 600 .env
+   chmod 755 .
+   chmod 755 images
+   chmod 644 *.php
+   chmod 644 *.html
+   ```
+7. Patikrinkite diegimą paleisdami `check-hosting.php`
+
+## Konfigūracija
+
+1. Nukopijuokite `.env.example` į `.env`
+2. Įveskite savo Stripe API raktus
+3. Nustatykite teisingą `SITE_URL`
+4. Patikrinkite ar visi reikalingi katalogai egzistuoja ir turi teisingas teises
+
+## Mokėjimų testavimas
+
+1. Naudokite Stripe testavimo kortelę: 4242 4242 4242 4242
+2. Galiojimo data: bet kokia ateities data
+3. CVC: bet kokie 3 skaitmenys
+4. ZIP: bet kokie 5 skaitmenys
+
+## Saugumas
+
+- Visi jautrūs failai yra apsaugoti
+- SSL sertifikatas yra privalomas
+- Stripe API raktai saugomi `.env` faile
+- Įjungtos saugumo antraštės
+- Įjungtas CORS apsauga
+
+## Klaidų šalinimas
+
+1. Patikrinkite `error_log` failą
+2. Paleiskite `check-hosting.php`
+3. Patikrinkite `.env` failo nustatymus
+4. Patikrinkite Stripe API raktus
+5. Patikrinkite SSL sertifikatą
+
+## Kontaktai
+
+Jei turite klausimų ar problemų, kreipkitės į pagalbos tarnybą.
 
 ## Features
 
