@@ -35,6 +35,14 @@ try {
         throw new Exception('Invalid input data');
     }
     
+    // Validate required fields
+    $requiredFields = ['customerName', 'customerAddress', 'customerPhone', 'phoneModel', 'deliveryMethod'];
+    foreach ($requiredFields as $field) {
+        if (empty($data[$field])) {
+            throw new Exception('Missing required field: ' . $field);
+        }
+    }
+    
     // Log received data
     error_log('Received data: ' . print_r($data, true));
     
@@ -59,10 +67,9 @@ try {
         'success_url' => $siteUrl . '/success.php?session_id={CHECKOUT_SESSION_ID}',
         'cancel_url' => $siteUrl . '/cancel.php?session_id={CHECKOUT_SESSION_ID}',
         'metadata' => [
-            'customer_name' => $data['name'],
-            'customer_address' => $data['address'],
-            'customer_phone' => $data['phone'],
-            'customer_email' => $data['email'],
+            'customer_name' => $data['customerName'],
+            'customer_address' => $data['customerAddress'],
+            'customer_phone' => $data['customerPhone'],
             'phone_model' => $data['phoneModel'],
             'delivery_method' => $data['deliveryMethod']
         ]
@@ -94,11 +101,19 @@ try {
     
     // Check HTTP response code
     if ($httpCode !== 200) {
-        throw new Exception('Stripe API error: ' . $response);
+        $errorResponse = json_decode($response, true);
+        $errorMessage = isset($errorResponse['error']['message']) 
+            ? $errorResponse['error']['message'] 
+            : 'Stripe API error';
+        throw new Exception($errorMessage);
     }
     
     // Decode response
     $session = json_decode($response, true);
+    
+    if (!isset($session['id'])) {
+        throw new Exception('Invalid response from Stripe API');
+    }
     
     // Log success
     error_log('Successfully created Stripe session: ' . $session['id']);
@@ -115,8 +130,6 @@ try {
     // Return error response
     http_response_code(500);
     echo json_encode([
-        'error' => [
-            'message' => $e->getMessage()
-        ]
+        'error' => $e->getMessage()
     ]);
 } 
