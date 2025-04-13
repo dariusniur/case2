@@ -372,8 +372,11 @@
 
                 console.log('Received session ID:', data.id);
 
-                // Initialize Stripe with publishable key
-                const stripe = Stripe('pk_test_51RBKaXRX285KlLv8OE4ojlOLkun5KKtvx7VAg1iXK3NaSv2q40jrMV7wwqgORDhPfaPJ2w1XTCun5lGKrXAwWTWe00dvQ50F37');
+                // Initialize Stripe with publishable key from configuration
+                const stripe = Stripe('<?php 
+                    $config = parse_ini_file(__DIR__ . '/config/.env');
+                    echo $config['STRIPE_PUBLISHABLE_KEY'] ?? '';
+                ?>');
                 
                 // Redirect to Stripe Checkout
                 const result = await stripe.redirectToCheckout({
