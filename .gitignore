@@ -1,8 +1,41 @@
+# Environment variables
 .env
-vendor/
+.env.local
+.env.*.local
+
+# Composer
+/vendor/
 composer.lock
-*.log
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
 .DS_Store
+Thumbs.db
+
+# Logs
+*.log
+error_log
+
+# Cache
+*.cache
+
+# Environment files
+.env.*
+!.env.example
+
+# Temporary files
+*.tmp
+*~
+
+# User uploaded files
+/uploads/
+/images/uploads/
+
 node_modules/
 images/*
 !images/.gitkeep 

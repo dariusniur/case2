@@ -6,140 +6,117 @@ ini_set('display_errors', 1);
 // Set content type to JSON
 header('Content-Type: application/json');
 
-// Load configuration
-$configFile = __DIR__ . '/config/.env';
-if (!file_exists($configFile)) {
-    error_log("Error: Configuration file not found at $configFile");
-    http_response_code(500);
-    echo json_encode(['error' => 'Configuration error: Missing config file']);
-    exit;
-}
-
-// Read configuration
-$config = parse_ini_file($configFile);
-if (!$config) {
-    error_log("Error: Failed to parse configuration file");
-    http_response_code(500);
-    echo json_encode(['error' => 'Configuration error: Invalid config file']);
-    exit;
-}
-
-// Check if cURL is available
-if (!function_exists('curl_init')) {
-    error_log("Error: cURL extension is not available");
-    http_response_code(500);
-    echo json_encode(['error' => 'Server configuration error: cURL extension is required']);
-    exit;
-}
-
-// Get the raw POST data
-$input = file_get_contents('php://input');
-$data = json_decode($input, true);
-
-// Log received data
-error_log("Received data: " . print_r($data, true));
-
-// Validate input data
-if (!$data) {
-    error_log("Error: Invalid input data received");
-    http_response_code(400);
-    echo json_encode(['error' => 'Invalid input data']);
-    exit;
-}
-
-// Required fields
-$requiredFields = ['name', 'address', 'phone', 'deliveryMethod', 'phoneModel'];
-foreach ($requiredFields as $field) {
-    if (empty($data[$field])) {
-        error_log("Error: Missing required field: $field");
-        http_response_code(400);
-        echo json_encode(['error' => "Missing required field: $field"]);
-        exit;
+try {
+    // Load environment variables
+    $configDir = dirname(__FILE__) . '/config';
+    $envFile = $configDir . '/.env';
+    
+    if (!file_exists($envFile)) {
+        throw new Exception('Environment file not found at ' . $envFile);
     }
-}
-
-// Get Stripe configuration
-$stripeSecretKey = $config['STRIPE_SECRET_KEY'] ?? '';
-$siteUrl = $config['SITE_URL'] ?? '';
-
-if (empty($stripeSecretKey)) {
-    error_log("Error: STRIPE_SECRET_KEY not found in configuration");
-    http_response_code(500);
-    echo json_encode(['error' => 'Stripe configuration error: API key not found']);
-    exit;
-}
-
-// Initialize cURL session
-$ch = curl_init();
-if (!$ch) {
-    error_log("Error: Failed to initialize cURL");
-    http_response_code(500);
-    echo json_encode(['error' => 'Server error: Failed to initialize payment service']);
-    exit;
-}
-
-// Set cURL options
-curl_setopt($ch, CURLOPT_URL, 'https://api.stripe.com/v1/checkout/sessions');
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-curl_setopt($ch, CURLOPT_POST, true);
-curl_setopt($ch, CURLOPT_HTTPHEADER, [
-    'Authorization: Bearer ' . $stripeSecretKey,
-    'Content-Type: application/x-www-form-urlencoded'
-]);
-
-// Prepare session data
-$sessionData = [
-    'payment_method_types[]' => 'card',
-    'line_items[0][price_data][currency]' => 'eur',
-    'line_items[0][price_data][product_data][name]' => 'Telefono dekoravimas',
-    'line_items[0][price_data][unit_amount]' => 2000, // 20.00 EUR
-    'line_items[0][quantity]' => 1,
-    'mode' => 'payment',
-    'success_url' => $siteUrl . '/success.html',
-    'cancel_url' => $siteUrl . '/cancel.html',
-    'customer_email' => $data['email'] ?? '',
-    'metadata[name]' => $data['name'],
-    'metadata[address]' => $data['address'],
-    'metadata[phone]' => $data['phone'],
-    'metadata[deliveryMethod]' => $data['deliveryMethod'],
-    'metadata[phoneModel]' => $data['phoneModel']
-];
-
-// Set POST data
-curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($sessionData));
-
-// Execute cURL request
-$response = curl_exec($ch);
-$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-
-// Check for cURL errors
-if (curl_errno($ch)) {
-    error_log("cURL Error: " . curl_error($ch));
-    http_response_code(500);
-    echo json_encode(['error' => 'Server error: ' . curl_error($ch)]);
+    
+    $env = parse_ini_file($envFile);
+    if (!$env) {
+        throw new Exception('Failed to parse environment file');
+    }
+    
+    if (empty($env['STRIPE_SECRET_KEY'])) {
+        throw new Exception('Stripe secret key not found in environment file');
+    }
+    
+    $stripeSecretKey = $env['STRIPE_SECRET_KEY'];
+    $siteUrl = $env['SITE_URL'] ?? 'https://deklink.lt';
+    
+    // Get POST data
+    $input = file_get_contents('php://input');
+    $data = json_decode($input, true);
+    
+    if (!$data) {
+        throw new Exception('Invalid input data');
+    }
+    
+    // Log received data
+    error_log('Received data: ' . print_r($data, true));
+    
+    // Initialize cURL session
+    $ch = curl_init();
+    
+    // Prepare session data
+    $sessionData = [
+        'payment_method_types' => ['card'],
+        'line_items' => [[
+            'price_data' => [
+                'currency' => 'eur',
+                'product_data' => [
+                    'name' => 'Custom Phone Case',
+                    'description' => 'Phone Model: ' . $data['phoneModel']
+                ],
+                'unit_amount' => 2000 // 20.00 EUR
+            ],
+            'quantity' => 1
+        ]],
+        'mode' => 'payment',
+        'success_url' => $siteUrl . '/success.php?session_id={CHECKOUT_SESSION_ID}',
+        'cancel_url' => $siteUrl . '/cancel.php?session_id={CHECKOUT_SESSION_ID}',
+        'metadata' => [
+            'customer_name' => $data['name'],
+            'customer_address' => $data['address'],
+            'customer_phone' => $data['phone'],
+            'customer_email' => $data['email'],
+            'phone_model' => $data['phoneModel'],
+            'delivery_method' => $data['deliveryMethod']
+        ]
+    ];
+    
+    // Set cURL options
+    curl_setopt($ch, CURLOPT_URL, 'https://api.stripe.com/v1/checkout/sessions');
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($sessionData));
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Authorization: Bearer ' . $stripeSecretKey,
+        'Content-Type: application/json'
+    ]);
+    
+    // Execute cURL request
+    $response = curl_exec($ch);
+    
+    // Check for cURL errors
+    if (curl_errno($ch)) {
+        throw new Exception('cURL error: ' . curl_error($ch));
+    }
+    
+    // Get HTTP response code
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    
+    // Close cURL session
     curl_close($ch);
-    exit;
-}
-
-// Close cURL session
-curl_close($ch);
-
-// Check HTTP response code
-if ($httpCode !== 200) {
-    error_log("Stripe API Error: " . $response);
+    
+    // Check HTTP response code
+    if ($httpCode !== 200) {
+        throw new Exception('Stripe API error: ' . $response);
+    }
+    
+    // Decode response
+    $session = json_decode($response, true);
+    
+    // Log success
+    error_log('Successfully created Stripe session: ' . $session['id']);
+    
+    // Return session ID
+    echo json_encode([
+        'id' => $session['id']
+    ]);
+    
+} catch (Exception $e) {
+    // Log error
+    error_log('Error in create-checkout-session.php: ' . $e->getMessage());
+    
+    // Return error response
     http_response_code(500);
-    echo json_encode(['error' => 'Payment service error: ' . $response]);
-    exit;
-}
-
-// Parse response
-$session = json_decode($response, true);
-if (!$session || !isset($session['id'])) {
-    error_log("Error: Invalid response from Stripe API");
-    http_response_code(500);
-    echo json_encode(['error' => 'Invalid response from payment service']);
-    exit;
-}
-
-// Return session ID
-echo json_encode(['id' => $session['id']]); 
+    echo json_encode([
+        'error' => [
+            'message' => $e->getMessage()
+        ]
+    ]);
+} 

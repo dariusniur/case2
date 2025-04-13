@@ -1,19 +1,52 @@
 #!/bin/bash
 
-# Set directory permissions to 755
-find . -type d -exec chmod 755 {} \;
+# Set permissions for .env file
+if [ -f .env ]; then
+    chmod 600 .env
+    echo "✅ Set .env permissions to 600"
+else
+    echo "❌ .env file not found"
+fi
 
-# Set file permissions to 644
-find . -type f -exec chmod 644 {} \;
+# Set permissions for PHP files
+for file in *.php; do
+    if [ -f "$file" ]; then
+        chmod 644 "$file"
+        echo "✅ Set $file permissions to 644"
+    fi
+done
 
-# Make scripts executable
-find . -name "*.sh" -exec chmod +x {} \;
+# Set permissions for HTML files
+for file in *.html; do
+    if [ -f "$file" ]; then
+        chmod 644 "$file"
+        echo "✅ Set $file permissions to 644"
+    fi
+done
 
-# Set special permissions for .env
-chmod 600 .env
+# Set permissions for .htaccess
+if [ -f .htaccess ]; then
+    chmod 644 .htaccess
+    echo "✅ Set .htaccess permissions to 644"
+else
+    echo "❌ .htaccess file not found"
+fi
 
-# Set special permissions for vendor directory
-chmod -R 755 vendor/
-chmod -R 644 vendor/*
+# Set permissions for vendor directory
+if [ -d vendor ]; then
+    chmod 755 vendor
+    echo "✅ Set vendor directory permissions to 755"
+else
+    echo "❌ vendor directory not found"
+fi
 
-echo "Permissions set successfully!" 
+# Set permissions for images directory
+if [ -d images ]; then
+    chmod 755 images
+    find images -type f -exec chmod 644 {} \;
+    echo "✅ Set images directory permissions to 755 and files to 644"
+else
+    echo "❌ images directory not found"
+fi
+
+echo "✅ Permissions setup complete" 

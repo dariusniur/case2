@@ -1,68 +1,71 @@
 <?php
-echo "Checking system requirements...\n\n";
+// Enable error reporting
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+// Function to check file permissions
+function checkPermissions($file) {
+    if (!file_exists($file)) {
+        return "File not found";
+    }
+    return substr(sprintf('%o', fileperms($file)), -4);
+}
+
+// Function to format output
+function output($message, $success = true) {
+    echo ($success ? "✅" : "❌") . " $message\n";
+    return $success;
+}
 
 // Check PHP version
-$requiredVersion = '7.4.0';
-$currentVersion = PHP_VERSION;
-echo "PHP Version: $currentVersion\n";
-if (version_compare($currentVersion, $requiredVersion, '>=')) {
-    echo "✓ PHP version meets requirements\n";
-} else {
-    echo "✗ PHP version is too old. Required: $requiredVersion\n";
-}
+$phpVersion = phpversion();
+$phpVersionOk = version_compare($phpVersion, '7.4.0', '>=');
+output("PHP Version: $phpVersion", $phpVersionOk);
 
-// Check if vendor directory exists
-if (is_dir('vendor')) {
-    echo "✓ Vendor directory exists\n";
-    
-    // Check if required packages are installed
-    $requiredPackages = [
-        'stripe/stripe-php',
-        'vlucas/phpdotenv'
-    ];
-    
-    foreach ($requiredPackages as $package) {
-        if (file_exists("vendor/$package")) {
-            echo "✓ Package $package is installed\n";
-        } else {
-            echo "✗ Package $package is missing\n";
-        }
-    }
-} else {
-    echo "✗ Vendor directory is missing. Run 'composer install'\n";
-}
+// Check vendor directory
+$vendorExists = is_dir('vendor');
+output("Vendor directory exists", $vendorExists);
 
 // Check .env file
-if (file_exists('.env')) {
-    echo "✓ .env file exists\n";
-    
-    // Check if .env is readable
-    if (is_readable('.env')) {
-        echo "✓ .env file is readable\n";
-    } else {
-        echo "✗ .env file is not readable\n";
-    }
-} else {
-    echo "✗ .env file is missing\n";
+$envExists = file_exists('.env');
+$envPerms = checkPermissions('.env');
+$envPermsOk = $envExists && $envPerms === '0600';
+output(".env file permissions: " . ($envExists ? $envPerms : 'file not found'), $envPermsOk);
+
+// Check required PHP extensions
+$requiredExtensions = ['curl', 'json', 'mbstring'];
+foreach ($requiredExtensions as $ext) {
+    $extLoaded = extension_loaded($ext);
+    output("PHP extension: $ext", $extLoaded);
 }
 
-// Check file permissions
-echo "\nChecking file permissions...\n";
-$filesToCheck = [
-    '.env' => 600,
-    'vendor' => 755,
-    'create-checkout-session.php' => 644
-];
+// Check if Composer is installed
+$composerVersion = shell_exec('composer --version');
+$composerInstalled = !empty($composerVersion);
+output("Composer installed", $composerInstalled);
 
-foreach ($filesToCheck as $file => $expectedPermission) {
-    if (file_exists($file)) {
-        $currentPermission = substr(sprintf('%o', fileperms($file)), -3);
-        if ($currentPermission == $expectedPermission) {
-            echo "✓ $file has correct permissions ($currentPermission)\n";
-        } else {
-            echo "✗ $file has incorrect permissions ($currentPermission, expected $expectedPermission)\n";
-        }
+// Check write permissions for required directories
+$directories = ['.', 'vendor'];
+foreach ($directories as $dir) {
+    if (is_dir($dir)) {
+        $writable = is_writable($dir);
+        output("Directory $dir is writable", $writable);
     }
 }
 
-echo "\nCheck complete!\n"; 
+// Check if Stripe keys are set in .env
+if ($envExists) {
+    $envContent = file_get_contents('.env');
+    $stripeSecretKeySet = strpos($envContent, 'STRIPE_SECRET_KEY') !== false;
+    $stripePublishableKeySet = strpos($envContent, 'STRIPE_PUBLISHABLE_KEY') !== false;
+    output("Stripe Secret Key is set", $stripeSecretKeySet);
+    output("Stripe Publishable Key is set", $stripePublishableKeySet);
+}
+
+// Check if cURL can connect to Stripe
+$ch = curl_init('https://api.stripe.com');
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+$response = curl_exec($ch);
+$curlError = curl_error($ch);
+curl_close($ch);
+output("Can connect to Stripe API", empty($curlError)); 
